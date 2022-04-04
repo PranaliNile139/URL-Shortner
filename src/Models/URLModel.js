@@ -20,7 +20,11 @@ const UrlSchema = new mongoose.Schema({
         required: true,
         unique: true,
         trim: true
-    }
-}, { timestamps: true })
+    },
+
+
+}, {versionKey: false} 
+// , { timestamps: true }
+)
 
 module.exports = mongoose.model('URL', UrlSchema)

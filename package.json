@@ -23,6 +23,10 @@
     "express": "^4.17.3",
     "module": "^1.2.5",
     "mongoose": "^6.2.9",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "redirect": "^0.2.0",
+    "short-id": "^0.1.0-1",
+    "shortid": "^2.2.16",
+    "valid-url": "^1.0.9"
   }
 }
