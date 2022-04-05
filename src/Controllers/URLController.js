@@ -56,7 +56,7 @@ const createUrl = async function(req,res) {
 
 
         // Validation of longUrl            
-        if(!/(:?^((https|http|HTTP|HTTPS){1}:\/\/)(([w]{3})[\.]{1})?([a-zA-Z0-9]{1,}[\.])[\w]*((\/){1}([\w@?^=%&amp;~+#-_.]+))*)$/.test(longUrl)) {
+        if(!/(:?^((https|http|HTTP|HTTPS){1}:\/\/)((www)[\.]{1}|)?([a-zA-Z0-9]{1,}[\.])[\w]*((\/){1}([\w@?^=%&amp;~+#-_.]+))*)$/.test(longUrl)) {
             return res.status(400).send({status: false, message: `logoLink is not a valid URL`})
         }
     
@@ -89,7 +89,7 @@ const createUrl = async function(req,res) {
     }
     catch (err) {
         console.log("This is the error :", err.message)
-        return res.status(500).send({ msg: "Error", error: err.message })
+        return res.status(500).send({status: false, msg:err.message })
     }
 }
 
