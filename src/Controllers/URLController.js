@@ -3,6 +3,7 @@ const validUrl = require('valid-url')
 const shortid = require('shortid')
 const redis = require("redis")
 const { promisify } = require("util")
+const { json } = require('body-parser')
 
 // ********************************************************** Connect to redis ********************************************************** //
 
@@ -61,17 +62,36 @@ const createUrl = async function(req,res) {
             return res.status(400).send({status: false, msg:"Please provide longUrl"})
         }
 
+        // //Validation of longUrl            
+        // if(!/(:?^((https|http|HTTP|HTTPS){1}:\/\/)(([w]{3})[\.]{1}|)?([a-zA-Z0-9]{1,}[\.])[\w]((\/){1}([\w@?^=%&amp;~+#-_.]+)))$/.test(longUrl)) {
+        //     return res.status(400).send({status: false, message: `logoLink is not a valid URL`})
+        // }
+
 
         // Validation of longUrl
          if( (!/(http|https|HTTP|HTTPS?:\/\/.)?(([www]{3})[\.]{1})?[-a-zA-Z0-9@:%.\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%\+.~#?&//=]*)$/.test(longUrl)) && (!/(:?^((https|http|HTTP|HTTPS){1}:\/\/)(([w]{3})[\.]{1}|)?([a-zA-Z0-9]{1,}[\.])[\w]*((\/){1}([\w@?^=%&amp;~+#-_.]+))*)$/.test(longUrl)) ) { //TA
-            return res.status(400).send({status: false, message: `logoLink is not a valid URL`})
+            return res.status(400).send({status: false, message: `longURL is not a valid URL`})
         }
-    
-            
-        let url = await UrlModel.findOne({longUrl: longUrl}).select({longUrl:1, shortUrl:1, urlCode:1, _id:0})
+
+        
+       
+         
+        
+        // if url is already present in db
+        let url = await UrlModel.findOne({longUrl}).select({longUrl:1, shortUrl:1, urlCode:1, _id:0})
         if(url) {
+            await SET_ASYNC(`${longUrl}`, JSON.stringify(url))
+            console.log("data is from mongodb")
             return res.status(200).send({status: true, data: url})
         } 
+
+
+        let check = await GET_ASYNC(`${longUrl}`)
+        if(check) {
+            let response = JSON.parse(check)
+            console.log("data is from cache")
+            return res.status(200).send({status: true, data: response})
+        }
     
 
         const baseUrl = 'http://localhost:3000/'
@@ -91,7 +111,8 @@ const createUrl = async function(req,res) {
         const finalurl = await UrlModel.create(input)
         const createdUrl = {longUrl:finalurl.longUrl, shortUrl:finalurl.shortUrl, urlCode:finalurl.urlCode}
         
-        await SET_ASYNC(urlCode.toLowerCase(), longUrl)
+        await SET_ASYNC(`${input}`, JSON.stringify(finalurl)) //,"EX", 20)
+        console.log("Data stored from DB")
         return res.status(201).send({status: true, data: createdUrl})
         
     }
@@ -109,12 +130,6 @@ module.exports.createUrl = createUrl
 
 const getUrl = async function(req,res) {
     try {
-        const urlCode = req.params.urlCode
-        // Validate params(it must be present)
-        if(!isValid(urlCode.trim().toLowerCase())) {
-            return res.status(400).send({status: false, msg: "Please provide urlCode"})
-        }
-
         // Validate body(it must not be present)
         if(isValidBody(req.body)) {
             return res.status(400).send({status: false, msg: "Body should not be present"})
@@ -126,18 +141,31 @@ const getUrl = async function(req,res) {
             return res.status(400).send({ status: false, msg: "Invalid parameters. Query must not be present"});
         }
 
-        let cache = await GET_ASYNC(`${urlCode}`);
-        if(cache) {
-            console.log("data which is stored will get pulled from cache.")
-            return res.status(302).redirect(cache)
-        } else {
-            const url = await UrlModel.findOne({urlCode: urlCode}).select({createdAt:0,updatedAt:0,__v:0})
-            if(url) {
-                res.status(302).redirect(url.longUrl);
-            } else{
-                return res.status(404).send({status: false, msg: "No urlCode matches"})
+        const urlCode = req.params.urlCode
+        // Validate params(it must be present)
+        if(!isValid(urlCode.trim().toLowerCase())) {
+            return res.status(400).send({status: false, msg: "Please provide urlCode"})
+        }
+
+        else{
+            let cache = await GET_ASYNC(`${urlCode}`);
+            if(cache) {
+                console.log("stored data pulled from cache.")
+                return res.status(302).redirect(JSON.parse(cache))
+            }
+            else {
+                const url = await UrlModel.findOne({urlCode: urlCode})
+                if(url) {
+                    console.log("stored data pulled from DB")
+                    await SET_ASYNC(`${urlCode}`, JSON.stringify(url.longUrl))
+                    return res.status(302).redirect(url.longUrl);
+                } else{
+                    return res.status(404).send({status: false, msg: "No urlCode matches"})
+                }
             }
         }
+
+        
     }
     catch (err) {
         console.log("This is the error :", err.message)
@@ -146,3 +174,5 @@ const getUrl = async function(req,res) {
 }
 
 module.exports.getUrl = getUrl
+
+//////////////////////////////////////////////////////////// END OF URL CONTROLLER ///////////////////////////////////////////////////////////
